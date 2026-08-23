@@ -1,19 +1,21 @@
 // @ts-nocheck
+import { Ionicons } from '@expo/vector-icons';
 import { Asset } from 'expo-asset';
-// deleteAsync eklendi
 import { copyAsync, deleteAsync, documentDirectory, getInfoAsync, makeDirectoryAsync } from 'expo-file-system/legacy';
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { useStore } from '../../store'; // Store eklendi
 
 export default function RootLayout() {
   const router = useRouter();
   const [dbHazir, setDbHazir] = useState(false);
+  const karanlikMod = useStore((state) => state.karanlikMod); // Karanlık mod verisi çekildi
 
   useEffect(() => {
     async function hazirla() {
       try {
-        const dbName = 'kuran.db';
+        const dbName = 'kuran_yeni.sqlite';
         const dbDir = documentDirectory + 'SQLite';
         const dbUri = dbDir + '/' + dbName;
 
@@ -24,27 +26,34 @@ export default function RootLayout() {
 
         const dbInfo = await getInfoAsync(dbUri);
         
-        // ÇÖZÜM BURADA: Dosya yoksa VEYA dosya yarım kalıp bozulmuşsa (boyutu çok küçükse) silip baştan yükle
-        if (!dbInfo.exists || (dbInfo.exists && dbInfo.size < 10000000)) {
-          console.log("Veritabanı eksik veya bozuk, sağlamı cihaza kopyalanıyor...");
-          
-          // Eğer bozuk bir dosya varsa önce onu çöpe atıyoruz
+        // Şartı 50.000 byte (50 KB) olarak güncelledik. Boş bir DB 0-8 KB arasıdır.
+        if (!dbInfo.exists || (dbInfo.exists && dbInfo.size < 50000)) {
+          console.log("Veritabanı eksik veya boş, assets içinden cihaza kopyalanıyor...");
           if (dbInfo.exists) {
              await deleteAsync(dbUri, { idempotent: true });
+             // YENİ: Hayalet önbellek dosyalarını da yok ediyoruz ki sistem temiz başlasın
+             await deleteAsync(dbUri + '-wal', { idempotent: true });
+             await deleteAsync(dbUri + '-shm', { idempotent: true });
+             await deleteAsync(dbUri + '-journal', { idempotent: true });
           }
-
-          const asset = await Asset.fromModule(require('../../assets/kuran.db')).downloadAsync();
+          
+          const asset = await Asset.fromModule(require('../../assets/kuran_yeni.sqlite')).downloadAsync();
           if (asset.localUri) {
             await copyAsync({ from: asset.localUri, to: dbUri });
+            console.log("Veritabanı başarıyla cihaza kopyalandı!");
+          } else {
+            console.log("HATA: Veritabanı assets'den okunamadı!");
           }
+        } else {
+          console.log(`Veritabanı cihazda zaten mevcut ve sağlam. Boyut: ${dbInfo.size} byte`);
         }
+        
         setDbHazir(true);
       } catch (error) {
         console.warn("Veritabanı kopyalama hatası:", error);
         setDbHazir(true);
       }
     }
-    
     hazirla();
   }, []);
 
@@ -62,7 +71,7 @@ export default function RootLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: '#4CAF50' },
+        headerStyle: { backgroundColor: karanlikMod ? '#1E1E1E' : '#4CAF50' }, // Dinamik Üst Bar
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
       }}
@@ -72,14 +81,28 @@ export default function RootLayout() {
         options={{
           title: 'e-Meal',
           headerRight: () => (
-            <TouchableOpacity onPress={() => router.push('/ayarlar')}>
-              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16, marginRight: 10 }}>Filtre</Text>
+            <TouchableOpacity 
+              onPress={() => router.push('/ayarlar')}
+              style={{ 
+                backgroundColor: karanlikMod ? '#2C2C2C' : '#fff', // Dinamik Buton Arka Planı
+                flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 6, borderRadius: 22, marginRight: 5, elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2 
+              }}
+            >
+              <Ionicons name="settings-sharp" size={16} color="#4CAF50" style={{ marginRight: 6 }} />
+              <Text style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: 16 }}>Ayarlar</Text>
             </TouchableOpacity>
           ),
         }}
       />
       <Stack.Screen name="oku/[sureId]" options={{ title: 'e-Meal', headerBackTitle: 'Geri' }} />
-      <Stack.Screen name="ayarlar" options={{ title: 'Meal Filtresi', presentation: 'modal' }} />
+      <Stack.Screen 
+        name="ayarlar" 
+        options={{ 
+          title: 'Ayarlar', 
+          presentation: 'modal',
+          headerStyle: { backgroundColor: karanlikMod ? '#1E1E1E' : '#4CAF50' } // Ayarlar Ekranı Üst Bar
+        }} 
+      />
     </Stack>
   );
 }

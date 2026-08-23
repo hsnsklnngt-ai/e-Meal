@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useStore } from '../../store';
 
-// 114 Surenin tam listesi ve ayet sayıları
 const TUM_SURELER = [
   { id: 1, ad: 'Fatiha', ayet: 7 }, { id: 2, ad: 'Bakara', ayet: 286 }, { id: 3, ad: 'Âl-i İmrân', ayet: 200 }, { id: 4, ad: 'Nisâ', ayet: 176 }, { id: 5, ad: 'Mâide', ayet: 120 }, { id: 6, ad: 'En\'âm', ayet: 165 }, { id: 7, ad: 'A\'râf', ayet: 206 }, { id: 8, ad: 'Enfâl', ayet: 75 }, { id: 9, ad: 'Tevbe', ayet: 129 }, { id: 10, ad: 'Yûnus', ayet: 109 },
   { id: 11, ad: 'Hûd', ayet: 123 }, { id: 12, ad: 'Yûsuf', ayet: 111 }, { id: 13, ad: 'Ra\'d', ayet: 43 }, { id: 14, ad: 'İbrâhîm', ayet: 52 }, { id: 15, ad: 'Hicr', ayet: 99 }, { id: 16, ad: 'Nahl', ayet: 128 }, { id: 17, ad: 'İsrâ', ayet: 111 }, { id: 18, ad: 'Kehf', ayet: 110 }, { id: 19, ad: 'Meryem', ayet: 98 }, { id: 20, ad: 'Tâhâ', ayet: 135 },
@@ -22,32 +21,24 @@ const TUM_SURELER = [
 
 export default function IndexScreen() {
   const router = useRouter();
-  const sonOkunan = useStore((state) => state.sonOkunan);
+  const { sonOkunan, karanlikMod } = useStore(); // Karanlık Mod Eklendi
   
-  // Hızlı Git State'leri
   const [hizliSureMetni, setHizliSureMetni] = useState('');
-  const [hizliSureId, setHizliSureId] = useState(null); // Seçilen surenin veritabanı ID'si
+  const [hizliSureId, setHizliSureId] = useState(null); 
   const [hizliDropdownAcik, setHizliDropdownAcik] = useState(false);
   const [aramaAyet, setAramaAyet] = useState('');
-  
-  // Liste Arama State'i
   const [sureAramaMetni, setSureAramaMetni] = useState('');
 
-  // 1. KURAL: Hızlı Arama Otomatik Doldurma (Sadece baş harfe göre)
   const hizliOneriler = TUM_SURELER.filter(sure => 
     sure.ad.toLocaleLowerCase('tr-TR').startsWith(hizliSureMetni.toLocaleLowerCase('tr-TR'))
   );
 
-  // 2. KURAL: Tüm Liste Filtresi (Sadece baş harfe göre)
   const filtrelenmisSureler = TUM_SURELER.filter(sure => 
     sure.ad.toLocaleLowerCase('tr-TR').startsWith(sureAramaMetni.toLocaleLowerCase('tr-TR'))
   );
 
-  // GİT Butonuna basıldığında
   const hizliGit = () => {
     let hedefSureId = hizliSureId;
-    
-    // Eğer kullanıcı listeden seçmeyip tam adını eliyle yazdıysa eşleştirelim
     if (!hedefSureId) {
        const exactMatch = TUM_SURELER.find(s => s.ad.toLocaleLowerCase('tr-TR') === hizliSureMetni.toLocaleLowerCase('tr-TR'));
        if (exactMatch) hedefSureId = exactMatch.id;
@@ -55,8 +46,6 @@ export default function IndexScreen() {
 
     if (hedefSureId) {
       router.push(`/oku/${hedefSureId}?hedefAyet=${aramaAyet || 1}`);
-      
-      // Geri gelindiğinde kutular temizlensin
       setHizliSureMetni('');
       setHizliSureId(null);
       setAramaAyet('');
@@ -65,30 +54,38 @@ export default function IndexScreen() {
     }
   };
 
+  // Dinamik Temalar
+  const themeBg = karanlikMod ? '#121212' : '#f5f6fa';
+  const cardBg = karanlikMod ? '#1E1E1E' : 'white';
+  const textColor = karanlikMod ? '#E0E0E0' : '#333';
+  const subTextColor = karanlikMod ? '#A0A0A0' : '#666';
+  const inputBg = karanlikMod ? '#2C2C2C' : '#fafafa';
+  const borderColor = karanlikMod ? '#333' : '#ddd';
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeBg }]}>
       
       {/* 1. SON OKUNAN BÖLÜMÜ */}
       {sonOkunan && (
         <TouchableOpacity 
-          style={styles.sonOkunanKutusu}
+          style={[styles.sonOkunanKutusu, karanlikMod && { backgroundColor: '#2A3B2A' }]}
           onPress={() => router.push(`/oku/${sonOkunan.sure}?hedefAyet=${sonOkunan.ayet}`)}
         >
-          <Text style={styles.sonOkunanBaslik}>Kaldığın Yerden Devam Et</Text>
-          <Text style={styles.sonOkunanYazi}>{sonOkunan.sureAd} - {sonOkunan.ayet}. Ayet</Text>
+          <Text style={[styles.sonOkunanBaslik, karanlikMod && { color: '#81C784' }]}>Kaldığın Yerden Devam Et</Text>
+          <Text style={[styles.sonOkunanYazi, karanlikMod && { color: '#E8F5E9' }]}>{sonOkunan.sureAd} - {sonOkunan.ayet}. Ayet</Text>
         </TouchableOpacity>
       )}
 
       {/* 2. HIZLI ARAMA BÖLÜMÜ */}
-      <View style={[styles.aramaKutusu, { zIndex: 10 }]}>
-        <Text style={styles.baslik}>Ayet Numarasına Git</Text>
+      <View style={[styles.aramaKutusu, { backgroundColor: cardBg, zIndex: 10 }]}>
+        <Text style={[styles.baslik, { color: subTextColor }]}>Ayet Numarasına Git</Text>
         <View style={styles.aramaSatiri}>
           
-          {/* Sure Adı Inputu ve Dropdown'u (Z-index ayarı ile diğerlerinin üstüne biner) */}
           <View style={{ flex: 1.2, marginRight: 10, position: 'relative', zIndex: 100 }}>
             <TextInput 
-              style={styles.input} 
+              style={[styles.input, { backgroundColor: inputBg, borderColor: borderColor, color: textColor }]} 
               placeholder="Sure Adı (Ör: Fatiha)" 
+              placeholderTextColor={subTextColor}
               value={hizliSureMetni} 
               onChangeText={(text) => {
                 setHizliSureMetni(text);
@@ -97,31 +94,31 @@ export default function IndexScreen() {
               }} 
             />
             
-            {/* Açılır Menü (Dropdown) */}
             {hizliDropdownAcik && hizliSureMetni.length > 0 && (
-                <View style={styles.dropdownKutusu}>
+                <View style={[styles.dropdownKutusu, { backgroundColor: cardBg, borderColor: borderColor }]}>
                    {hizliOneriler.slice(0, 4).map(sure => (
                        <TouchableOpacity 
                           key={sure.id} 
-                          style={styles.dropdownItem}
+                          style={[styles.dropdownItem, { borderBottomColor: borderColor }]}
                           onPress={() => {
-                              setHizliSureMetni(sure.ad); // Metin kutusuna ismini yaz
-                              setHizliSureId(sure.id);    // Arkaplanda ID'sini kaydet
-                              setHizliDropdownAcik(false); // Menüyü kapat
+                              setHizliSureMetni(sure.ad);
+                              setHizliSureId(sure.id);
+                              setHizliDropdownAcik(false);
                           }}>
-                           <Text style={styles.dropdownItemText}>{sure.ad}</Text>
+                           <Text style={[styles.dropdownItemText, { color: textColor }]}>{sure.ad}</Text>
                        </TouchableOpacity>
                    ))}
                    {hizliOneriler.length === 0 && (
-                       <Text style={styles.dropdownYokText}>Eşleşen sure yok</Text>
+                       <Text style={[styles.dropdownYokText, { color: subTextColor }]}>Eşleşen sure yok</Text>
                    )}
                 </View>
             )}
           </View>
 
           <TextInput 
-            style={[styles.input, { flex: 0.6, marginRight: 10 }]} 
+            style={[styles.input, { flex: 0.6, marginRight: 10, backgroundColor: inputBg, borderColor: borderColor, color: textColor }]} 
             placeholder="Ayet No" 
+            placeholderTextColor={subTextColor}
             keyboardType="number-pad" 
             value={aramaAyet} 
             onChangeText={setAramaAyet} 
@@ -134,10 +131,11 @@ export default function IndexScreen() {
 
       {/* 3. SURE LİSTESİ VE İSİM FİLTRESİ */}
       <View style={[styles.listeUstKisim, { zIndex: 1 }]}>
-        <Text style={styles.baslik}>Sure Listesi</Text>
+        <Text style={[styles.baslik, { color: subTextColor }]}>Sure Listesi</Text>
         <TextInput 
-          style={styles.isimAramaInput} 
+          style={[styles.isimAramaInput, { backgroundColor: cardBg, borderColor: borderColor, color: textColor }]} 
           placeholder="Sure Ara (Örn: Yasin)" 
+          placeholderTextColor={subTextColor}
           value={sureAramaMetni}
           onChangeText={setSureAramaMetni}
         />
@@ -149,17 +147,17 @@ export default function IndexScreen() {
         keyboardShouldPersistTaps="handled" 
         renderItem={({ item }) => (
           <TouchableOpacity 
-            style={styles.sureKart}
+            style={[styles.sureKart, { backgroundColor: cardBg }]}
             onPress={() => router.push(`/oku/${item.id}`)}
           >
-            <View style={styles.sureNoYuvarlak}>
+            <View style={[styles.sureNoYuvarlak, karanlikMod && { backgroundColor: '#2A3B2A' }]}>
               <Text style={styles.sureNoYazi}>{item.id}</Text>
             </View>
             <View style={{ flex: 1 }}>
-                <Text style={styles.sureAdi}>{item.ad} Suresi</Text>
+                <Text style={[styles.sureAdi, { color: textColor }]}>{item.ad} Suresi</Text>
             </View>
-            <View style={styles.ayetSayisiKutusu}>
-                <Text style={styles.ayetSayisiYazi}>{item.ayet} Ayet</Text>
+            <View style={[styles.ayetSayisiKutusu, karanlikMod && { backgroundColor: '#2C2C2C' }]}>
+                <Text style={[styles.ayetSayisiYazi, { color: subTextColor }]}>{item.ayet} Ayet</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -170,34 +168,25 @@ export default function IndexScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f6fa' },
-  
   sonOkunanKutusu: { backgroundColor: '#388E3C', margin: 15, padding: 15, borderRadius: 10, elevation: 3 },
   sonOkunanBaslik: { color: '#C8E6C9', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },
   sonOkunanYazi: { color: 'white', fontSize: 18, fontWeight: 'bold', marginTop: 5 },
-
   aramaKutusu: { backgroundColor: 'white', margin: 15, marginTop: 0, padding: 15, borderRadius: 10, elevation: 2 },
   baslik: { fontSize: 14, fontWeight: 'bold', color: '#666', marginBottom: 10 },
   aramaSatiri: { flexDirection: 'row', justifyContent: 'space-between' },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 5, padding: 8, backgroundColor: '#fafafa', color: '#333' },
   gitButon: { backgroundColor: '#4CAF50', paddingHorizontal: 20, justifyContent: 'center', borderRadius: 5 },
   gitButonYazi: { color: 'white', fontWeight: 'bold' },
-
-  // Yeni Dropdown (Açılır Menü) Tasarımı
   dropdownKutusu: { position: 'absolute', top: 45, left: 0, right: 0, backgroundColor: 'white', borderWidth: 1, borderColor: '#eee', borderRadius: 5, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 3 },
   dropdownItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
   dropdownItemText: { fontSize: 14, color: '#333' },
   dropdownYokText: { padding: 10, fontSize: 12, color: '#999', fontStyle: 'italic' },
-
   listeUstKisim: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 15, marginBottom: 10 },
-  
-  // Şık ve Belirgin Yapılan Arama Kutusu Tasarımı
   isimAramaInput: { backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, width: '55%', fontSize: 14, borderWidth: 1, borderColor: '#4CAF50', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
-
   sureKart: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', padding: 15, marginHorizontal: 15, marginBottom: 10, borderRadius: 8, elevation: 1 },
   sureNoYuvarlak: { width: 35, height: 35, borderRadius: 17.5, backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   sureNoYazi: { color: '#4CAF50', fontWeight: 'bold' },
   sureAdi: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  
   ayetSayisiKutusu: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5 },
   ayetSayisiYazi: { fontSize: 12, color: '#888' }
 });
