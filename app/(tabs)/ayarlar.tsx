@@ -1,7 +1,8 @@
 // @ts-nocheck
+// @ts-nocheck
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useStore } from '../../store';
 
 // SABİT 16 YAZAR LİSTESİ (Alfabetik)[cite: 3]
@@ -13,6 +14,22 @@ const YAZARLAR = [
 ];
 
 export default function AyarlarEkrani() {
+  const [tiklamaSayisi, setTiklamaSayisi] = useState(0);
+
+  const gizliOdaTetikle = () => {
+    const yeniSayi = tiklamaSayisi + 1;
+    setTiklamaSayisi(yeniSayi);
+    
+    // 7. Tıklamada Gizli Mesaj Açılır!
+    if (yeniSayi === 7) {
+      Alert.alert(
+        "Sırrı Buldunuz! 🌙",
+        "\"Rabbim, ilmimi artır.\" (Tâhâ Suresi, 114)\n\nBu uygulama, Kuran'ın nurunu dijital dünyaya zarifçe taşımak için @guventunay tarafından sevgiyle kodlandı.",
+        [{ text: "Eyvallah", onPress: () => setTiklamaSayisi(0) }]
+      );
+    }
+  };
+
   const {
     arapcaGoster, setArapcaGoster,
     kelimeGoster, setKelimeGoster,
@@ -91,7 +108,7 @@ export default function AyarlarEkrani() {
               style={[styles.yazarSatiri, index !== YAZARLAR.length - 1 && { borderBottomWidth: 1, borderBottomColor: borderColor }]}
               onPress={() => yazarTetikle(yazar)}
             >
-              <Text style={[styles.yazarAd, { color: textColor }, seciliMi && styles.yazarAdSecili]}>{yazar}</Text>
+             <Text style={[styles.yazarAd, { color: textColor }, seciliMi && styles.yazarAdSecili]}>{yazar}</Text>
               <View style={[styles.yuvarlak, seciliMi && styles.yuvarlakSecili, karanlikMod && !seciliMi && { borderColor: '#555' }]}>
                 {seciliMi && <Ionicons name="checkmark" size={16} color="white" />}
               </View>
@@ -99,6 +116,26 @@ export default function AyarlarEkrani() {
           );
         })}
       </View>
+
+      {/* GELİŞTİRİCİ İMZASI VE GİZLİ ODA (EASTER EGG) */}
+      <View style={{ alignItems: 'center', marginTop: 40, marginBottom: 20 }}>
+        {/* Gizli Buton (Nun Harfi) */}
+        <TouchableOpacity activeOpacity={0.8} onPress={gizliOdaTetikle}>
+          <Text style={{ fontSize: 28, color: subTextColor, opacity: 0.3, marginBottom: 10 }}>ن</Text>
+        </TouchableOpacity>
+
+        {/* Telegram İletişim İmzası */}
+        <TouchableOpacity 
+          style={{ flexDirection: 'row', alignItems: 'center', opacity: 0.5 }}
+          onPress={() => Linking.openURL('https://t.me/guventunay')}
+        >
+          <Ionicons name="paper-plane" size={14} color={subTextColor} />
+          <Text style={{ marginLeft: 6, color: subTextColor, fontSize: 13, fontWeight: '500' }}>
+            Geliştirici: @guventunay
+          </Text>
+        </TouchableOpacity>
+      </View>
+
     </ScrollView>
   );
 }
