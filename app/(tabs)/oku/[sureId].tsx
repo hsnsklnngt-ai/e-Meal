@@ -1,8 +1,10 @@
 // @ts-nocheck
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as SQLite from 'expo-sqlite';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../../store';
 
 // 1. KORUMA: Veritabanı kasası. Sadece 1 kere bağlanır, bir daha motoru yormaz!
@@ -15,9 +17,10 @@ const getDb = () => {
 };
 
 export default function OkumaEkrani() {
- 
+  const insets = useSafeAreaInsets(); // Sistem saatinin/çentiğin boyutunu otomatik hesaplar
+  const router = useRouter();
   const { sureId, hedefAyet } = useLocalSearchParams();
-  // Filtreleri store'dan çekiyoruz[cite: 8]
+  // Filtreleri store'dan çekiyoruz
   const { 
     yaziBoyutu, setYaziBoyutu, 
     seciliYazarlar, setSonOkunan,
@@ -79,7 +82,7 @@ export default function OkumaEkrani() {
       let meallerResult = [];
       if (temizYazarlar.length > 0) {
         const placeholders = temizYazarlar.map(() => '?').join(',');
-        // 2. YENİ TABLO SÜTUNU: "yazar_adi" kullanıyoruz[cite: 8]
+        // 2. YENİ TABLO SÜTUNU: "yazar_adi" kullanıyoruz
         const sql = `SELECT * FROM Mealler WHERE sure_no = ? AND yazar_adi IN (${placeholders}) ORDER BY yazar_adi ASC`;
         const queryParams = [queryId, ...temizYazarlar];
         meallerResult = db.getAllSync(sql, queryParams);
@@ -105,10 +108,6 @@ export default function OkumaEkrani() {
         // Kamera Yedeği: Hedef ayete gidilirse o ayeti kaydet
         setSonOkunan(queryId, hAyetNo, `${queryId}. ${SURE_ADLARI[queryId]} Suresi`);
       } 
-      // DİKKAT: else bloğunu sildik! 
-      // Geri tuşuna basıldığında sayfa kapanırken hedefAyet boşa çıktığı için 
-      // sistem bu bloğa düşüp zorla 1'e sıfırlıyordu. 
-      // Artık sadece kameranın gördüğü ayet hafızada kalacak.
     } catch (error) {
       console.warn("Veri çekme sırasında hata:", error);
       setYukleniyor(false);
@@ -140,7 +139,7 @@ export default function OkumaEkrani() {
         )}
       </View>
 
-      {/* 4. FİLTRE: Kelime analiz kısmı 'kelimeGoster' true ise render edilir[cite: 8] */}
+      {/* 4. FİLTRE: Kelime analiz kısmı 'kelimeGoster' true ise render edilir */}
       {kelimeGoster && (
         <View style={[styles.kelimeKutusu, { backgroundColor: wordContainerBg }]}>
           <View style={styles.kelimelerWrapper}>
@@ -172,17 +171,30 @@ export default function OkumaEkrani() {
 
   return (
     <View style={[styles.container, { backgroundColor: themeBg }]}>
-      <Stack.Screen 
-        options={{ 
-          title: 'e-Meal', 
-          headerBackTitle: 'Geri', 
-          headerStyle: { backgroundColor: karanlikMod ? '#1E1E1E' : '#4CAF50' },
-          headerTintColor: '#fff' 
-        }} 
-      />
+      {/* 1. YENİ: Expo'nun o üstteki devasa barını tamamen gizliyoruz! */}
+      <Stack.Screen options={{ headerShown: false }} />
       
-      <View style={[styles.ustAyarlar, { backgroundColor: cardBg, borderBottomColor: borderColor }]}>
-        <Text style={[styles.sureBaslik, { color: textColor }]}>{sureEkraniBaslik}</Text>
+      {/* 2. YENİ: Özel barımız. İçine Geri butonunu, sure adını ve font butonlarını koyduk */}
+      <View style={[styles.ustAyarlar, { 
+        backgroundColor: cardBg, 
+        borderBottomColor: borderColor, 
+        paddingTop: insets.top + 10 // Barı saat hizasından güvenli bir şekilde aşağı iter
+      }]}>
+        
+        {/* Sol Taraf: Geri Butonu ve Sure Adı */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={{ padding: 5, marginRight: 10 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <Text style={[styles.sureBaslik, { color: textColor }]} numberOfLines={1}>
+            {sureEkraniBaslik}
+          </Text>
+        </View>
+
+        {/* Sağ Taraf: Font Butonları */}
         <View style={styles.fontAyarKutusu}>
           <TouchableOpacity onPress={() => setYaziBoyutu(Math.max(12, yaziBoyutu - 2))} style={[styles.fontButon, { backgroundColor: karanlikMod ? '#2A3B2A' : '#E8F5E9' }]}>
             <Text style={styles.fontButonYazi}>A-</Text>
@@ -216,7 +228,7 @@ export default function OkumaEkrani() {
   );
 }
 
-// Stillerin ana iskeleti[cite: 8] - Renkler yukarıda dinamik olarak verildi
+// Stillerin ana iskeleti - Renkler yukarıda dinamik olarak verildi
 const styles = StyleSheet.create({
   container: { flex: 1 },
   merkez: { flex: 1, justifyContent: 'center', alignItems: 'center' },
