@@ -34,7 +34,8 @@ export default function AyarlarEkrani() {
     arapcaGoster, setArapcaGoster,
     kelimeGoster, setKelimeGoster,
     karanlikMod, setKaranlikMod,
-    seciliYazarlar, setSeciliYazarlar
+    seciliYazarlar, setSeciliYazarlar,
+    inisSirasinaGore, setInisSirasinaGore
   } = useStore();
 
   const yazarTetikle = (yazar) => {
@@ -58,14 +59,21 @@ export default function AyarlarEkrani() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: themeBg }]} contentContainerStyle={{ paddingBottom: 40 }}>
       
-      <Text style={[styles.kategoriBaslik, { color: subTextColor }]}>Görünüm Ayarları</Text>
+      <Text style={[styles.kategoriBaslik, { color: subTextColor }]}>Görünüm ve Sıralama</Text>
       <View style={[styles.kutu, { backgroundColor: cardBg }]}>
-        <View style={styles.ayarSatiri}>
+        <View style={[styles.ayarSatiri, { borderBottomWidth: 1, borderBottomColor: borderColor }]}>
           <View style={styles.ayarSol}>
             <Ionicons name="moon" size={20} color={subTextColor} style={styles.ikon} />
             <Text style={[styles.ayarMetin, { color: textColor }]}>Karanlık Mod</Text>
           </View>
           <Switch value={karanlikMod} onValueChange={setKaranlikMod} trackColor={{ false: '#d3d3d3', true: '#4CAF50' }} />
+        </View>
+        <View style={styles.ayarSatiri}>
+          <View style={styles.ayarSol}>
+            <Ionicons name="swap-vertical" size={20} color={subTextColor} style={styles.ikon} />
+            <Text style={[styles.ayarMetin, { color: textColor }]}>İniş Sırasına Göre Diz (Nüzul)</Text>
+          </View>
+          <Switch value={inisSirasinaGore} onValueChange={setInisSirasinaGore} trackColor={{ false: '#d3d3d3', true: '#4CAF50' }} />
         </View>
       </View>
 

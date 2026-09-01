@@ -28,6 +28,9 @@ export const useStore = create(
 
       karanlikMod: false,
       setKaranlikMod: (deger) => set({ karanlikMod: deger }),
+
+      inisSirasinaGore: false,
+      setInisSirasinaGore: (deger) => set({ inisSirasinaGore: deger }),
     }),
     {
       name: 'kuran-ayarlar-hafizasi', // AsyncStorage'da bu isimle kaydedilir

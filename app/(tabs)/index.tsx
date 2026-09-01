@@ -19,9 +19,12 @@ const TUM_SURELER = [
   { id: 111, ad: 'Tebbet', ayet: 5 }, { id: 112, ad: 'İhlâs', ayet: 4 }, { id: 113, ad: 'Felak', ayet: 5 }, { id: 114, ad: 'Nâs', ayet: 6 }
 ];
 
+// Diyanet Nüzul (İniş) Sıralaması Referansı
+const NUZUL_SIRASI = [96, 68, 73, 74, 1, 111, 81, 87, 92, 89, 93, 94, 103, 100, 108, 102, 107, 109, 105, 113, 114, 112, 53, 80, 97, 91, 85, 95, 106, 101, 75, 104, 77, 50, 90, 86, 54, 38, 7, 72, 36, 25, 35, 19, 20, 56, 26, 27, 28, 17, 10, 11, 12, 15, 6, 37, 31, 34, 39, 40, 41, 42, 43, 44, 45, 46, 51, 88, 18, 16, 71, 14, 21, 23, 32, 52, 67, 69, 70, 78, 79, 82, 84, 30, 29, 83, 2, 8, 3, 33, 60, 4, 99, 57, 47, 13, 55, 76, 65, 98, 59, 24, 22, 63, 58, 49, 66, 64, 61, 62, 48, 5, 9, 110];
+
 export default function IndexScreen() {
   const router = useRouter();
-  const { sonOkunan, karanlikMod } = useStore(); // Karanlık Mod Eklendi
+  const { sonOkunan, karanlikMod, inisSirasinaGore } = useStore(); 
   
   const [hizliSureMetni, setHizliSureMetni] = useState('');
   const [hizliSureId, setHizliSureId] = useState(null); 
@@ -33,7 +36,12 @@ export default function IndexScreen() {
     sure.ad.toLocaleLowerCase('tr-TR').startsWith(hizliSureMetni.toLocaleLowerCase('tr-TR'))
   );
 
-  const filtrelenmisSureler = TUM_SURELER.filter(sure => 
+  // ZEKİ SIRALAMA: Eğer ayar açıksa dizilimi Nüzul sırasına göre yap, kapalıysa numarasına göre (Mushaf) bırak
+  const siraliSureler = inisSirasinaGore 
+    ? [...TUM_SURELER].sort((a, b) => NUZUL_SIRASI.indexOf(a.id) - NUZUL_SIRASI.indexOf(b.id)) 
+    : TUM_SURELER;
+
+  const filtrelenmisSureler = siraliSureler.filter(sure => 
     sure.ad.toLocaleLowerCase('tr-TR').startsWith(sureAramaMetni.toLocaleLowerCase('tr-TR'))
   );
 
@@ -73,6 +81,13 @@ export default function IndexScreen() {
         >
           <Text style={[styles.sonOkunanBaslik, karanlikMod && { color: '#81C784' }]}>Kaldığın Yerden Devam Et</Text>
           <Text style={[styles.sonOkunanYazi, karanlikMod && { color: '#E8F5E9' }]}>{sonOkunan.sureAd} - {sonOkunan.ayet}. Ayet</Text>
+          
+          {/* YENİ: Ayarlardan Nüzul Sırası açıksa, küçük ve zarif bir fontla İniş sırasını da ekler */}
+          {inisSirasinaGore && (
+            <Text style={{ color: karanlikMod ? '#A5D6A7' : '#C8E6C9', fontSize: 13, fontStyle: 'italic', marginTop: 4 }}>
+              İniş: {NUZUL_SIRASI.indexOf(sonOkunan.sure) + 1}. Sure
+            </Text>
+          )}
         </TouchableOpacity>
       )}
 
@@ -156,8 +171,16 @@ export default function IndexScreen() {
             <View style={{ flex: 1 }}>
                 <Text style={[styles.sureAdi, { color: textColor }]}>{item.ad} Suresi</Text>
             </View>
-            <View style={[styles.ayetSayisiKutusu, karanlikMod && { backgroundColor: '#2C2C2C' }]}>
-                <Text style={[styles.ayetSayisiYazi, { color: subTextColor }]}>{item.ayet} Ayet</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <View style={[styles.ayetSayisiKutusu, karanlikMod && { backgroundColor: '#2C2C2C' }]}>
+                  <Text style={[styles.ayetSayisiYazi, { color: subTextColor }]}>{item.ayet} Ayet</Text>
+              </View>
+              {/* Ayar açıksa, ayet sayısının hemen altına İniş Sırasını yazar */}
+              {inisSirasinaGore && (
+                <Text style={{ fontSize: 11, color: subTextColor, marginTop: 4, fontStyle: 'italic' }}>
+                  İniş: {NUZUL_SIRASI.indexOf(item.id) + 1}. Sure
+                </Text>
+              )}
             </View>
           </TouchableOpacity>
         )}
