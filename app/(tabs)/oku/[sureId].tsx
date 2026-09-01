@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as SQLite from 'expo-sqlite';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../../store';
 
@@ -25,7 +25,6 @@ export default function OkumaEkrani() {
   const router = useRouter();
   const { sureId, hedefAyet } = useLocalSearchParams();
   
-  // inisSirasinaGore store'dan eklendi
   const { 
     yaziBoyutu, setYaziBoyutu, 
     seciliYazarlar, setSonOkunan,
@@ -35,14 +34,37 @@ export default function OkumaEkrani() {
   
   const [ayetler, setAyetler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
+  
+  // YENİ: Çizginin akıcı (smooth) dolması için animasyon motoru ve toplam ayet referansı
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const toplamAyetRef = useRef(0);
+  
   const flatListRef = useRef(null);
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems && viewableItems.length > 0) {
+      
+      // 1. Son okunan ayeti kaydetme (En üstteki ayet)
       const ekrandakiVeri = viewableItems[0].item; 
       if (ekrandakiVeri && ekrandakiVeri.sure_no && ekrandakiVeri.ayet_no) {
         const sureAdi = SURE_ADLARI[ekrandakiVeri.sure_no];
         useStore.getState().setSonOkunan(ekrandakiVeri.sure_no, ekrandakiVeri.ayet_no, `${ekrandakiVeri.sure_no}. ${sureAdi} Suresi`);
+      }
+
+      // 2. YENİ: İlerleme Çubuğu Mantığı (Zıplamayı Önler!)
+      // Ekranda görünen EN ALTTAKİ ayete bakar. Örneğin 286 ayetlik surede ekranda 14. ayet varsa %5 civarı çizer.
+      if (toplamAyetRef.current > 0) {
+        const sonGorunenAyet = viewableItems[viewableItems.length - 1].item;
+        if (sonGorunenAyet) {
+          const yuzde = (sonGorunenAyet.ayet_no / toplamAyetRef.current) * 100;
+          
+          // Çizgiyi anında koparmak yerine bir sıvı gibi akıtır (duration: 300ms)
+          Animated.timing(progressAnim, {
+            toValue: yuzde,
+            duration: 300,
+            useNativeDriver: false // Genişlik animasyonlarında false olmalıdır
+          }).start();
+        }
       }
     }
   }).current;
@@ -60,6 +82,7 @@ export default function OkumaEkrani() {
     if (!sureId) return;
 
     setYukleniyor(true);
+    progressAnim.setValue(0); // YENİ: Sure değiştiğinde çizgiyi en başa (sıfıra) çeker
     
     try {
       const db = getDb();
@@ -90,6 +113,9 @@ export default function OkumaEkrani() {
         kelimeler: kelimelerResult.filter(k => k.ayet_no === ayet.ayet_no),
         mealler: meallerResult.filter(m => m.ayet_no === ayet.ayet_no)
       }));
+
+      // YENİ: Surenin toplam ayet sayısını referansa kaydediyoruz
+      toplamAyetRef.current = birlestirilmisVeri.length;
 
       setAyetler(birlestirilmisVeri);
       setYukleniyor(false);
@@ -176,7 +202,7 @@ export default function OkumaEkrani() {
 
   // LİSTE SONU BUTONU (FOOTER)
   const renderFooter = () => {
-    if (!sonrakiSureId) return <View style={{ height: 40 }} />; // Son suredeyse boşluk bırak
+    if (!sonrakiSureId) return <View style={{ height: 40 }} />; 
     
     const sonrakiSureAdi = SURE_ADLARI[sonrakiSureId];
     const detayMetni = inisSirasinaGore 
@@ -216,7 +242,7 @@ export default function OkumaEkrani() {
       
       <View style={[styles.ustAyarlar, { 
         backgroundColor: cardBg, 
-        borderBottomColor: borderColor, 
+        borderBottomWidth: 0, 
         paddingTop: insets.top + 10
       }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -240,6 +266,18 @@ export default function OkumaEkrani() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* YENİ: ZEKİ VE AKICI OKUMA İLERLEME ÇUBUĞU (Animasyonlu) */}
+      <View style={{ height: 3, width: '100%', backgroundColor: karanlikMod ? '#2A3B2A' : '#E8F5E9' }}>
+        <Animated.View style={{ 
+          height: '100%', 
+          backgroundColor: '#4CAF50',
+          width: progressAnim.interpolate({
+            inputRange: [0, 100],
+            outputRange: ['0%', '100%']
+          }) 
+        }} />
+      </View>
       
       <FlatList
         ref={flatListRef}
@@ -250,6 +288,7 @@ export default function OkumaEkrani() {
         contentContainerStyle={{ padding: 15 }}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
+        // onScroll ve scrollEventThrottle buradan KESİNLİKLE SİLİNDİ! Zıplamaya yer yok.
         onScrollToIndexFailed={info => {
           const offset = (info.averageItemLength || 500) * info.index;
           flatListRef.current?.scrollToOffset({ offset, animated: false });
@@ -265,7 +304,7 @@ export default function OkumaEkrani() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   merkez: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  ustAyarlar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1 },
+  ustAyarlar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15 },
   sureBaslik: { fontSize: 18, fontWeight: 'bold' },
   fontAyarKutusu: { flexDirection: 'row' },
   fontButon: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 5, marginLeft: 10 },
