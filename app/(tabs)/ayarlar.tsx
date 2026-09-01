@@ -20,14 +20,22 @@ export default function AyarlarEkrani() {
     const yeniSayi = tiklamaSayisi + 1;
     setTiklamaSayisi(yeniSayi);
     
-    // 7. Tıklamada Gizli Mesaj Açılır!
     if (yeniSayi === 7) {
-      Alert.alert(
-        "Sırrı Buldunuz! 🌙",
-        "\"Rabbim, ilmimi artır.\" (Tâhâ Suresi, 114)\n\nBu uygulama, Kuran'ın nurunu dijital dünyaya zarifçe taşımak için @guventunay tarafından sevgiyle kodlandı.",
-        [{ text: "Eyvallah", onPress: () => setTiklamaSayisi(0) }]
-      );
-    }
+        Alert.alert(
+          "Sırrı Buldunuz! 🌙",
+          "\"Rabbim, ilmimi artır.\" (Tâhâ Suresi, 114)\n\nBu uygulama, Kuran'ın nurunu dijital dünyaya zarifçe taşımak için @guventunay tarafından sevgiyle kodlandı.",
+          [{ text: "Eyvallah", onPress: () => setTiklamaSayisi(0) }]
+        );
+      }
+    };
+
+  // YENİ: Gizlilik Politikası Fonksiyonu
+  const gizlilikPolitikasiGoster = () => {
+    Alert.alert(
+      "Gizlilik Politikası",
+      "e-Meal uygulaması hiçbir kişisel verinizi toplamaz, kaydetmez veya üçüncü taraflarla paylaşmaz.\n\nOkuma geçmişiniz, favori yazarlarınız ve tüm Kuran veritabanı tamamen kendi cihazınızın hafızasında (çevrimdışı) tutulur.\n\nGönül rahatlığıyla kullanabilirsiniz.",
+      [{ text: "Kapat", style: "cancel" }]
+    );
   };
 
   const {
@@ -127,6 +135,15 @@ export default function AyarlarEkrani() {
 
       {/* GELİŞTİRİCİ İMZASI VE GİZLİ ODA (EASTER EGG) */}
       <View style={{ alignItems: 'center', marginTop: 40, marginBottom: 20 }}>
+        
+        {/* YENİ: Gizlilik Politikası Butonu */}
+        <TouchableOpacity onPress={gizlilikPolitikasiGoster} style={{ marginBottom: 25, flexDirection: 'row', alignItems: 'center', opacity: 0.7 }}>
+          <Ionicons name="shield-checkmark-outline" size={16} color={subTextColor} />
+          <Text style={{ color: subTextColor, fontSize: 13, textDecorationLine: 'underline', marginLeft: 5 }}>
+            Gizlilik Politikası
+          </Text>
+        </TouchableOpacity>
+
         {/* Gizli Buton (Nun Harfi) */}
         <TouchableOpacity activeOpacity={0.8} onPress={gizliOdaTetikle}>
           <Text style={{ fontSize: 28, color: subTextColor, opacity: 0.3, marginBottom: 10 }}>ن</Text>
