@@ -16,38 +16,40 @@ const getDb = () => {
   return dbInstance;
 };
 
+// Sıralama Referansları
+const SURE_ADLARI = ["", "Fatiha", "Bakara", "Âl-i İmrân", "Nisâ", "Mâide", "En'âm", "A'râf", "Enfâl", "Tevbe", "Yûnus", "Hûd", "Yûsuf", "Ra'd", "İbrâhîm", "Hicr", "Nahl", "İsrâ", "Kehf", "Meryem", "Tâhâ", "Enbiyâ", "Hac", "Mü'minûn", "Nûr", "Furkân", "Şuarâ", "Neml", "Kasas", "Ankebût", "Rûm", "Lokmân", "Secde", "Ahzâb", "Sebe'", "Fâtır", "Yâsîn", "Sâffât", "Sâd", "Zümer", "Mü'min", "Fussilet", "Şûrâ", "Zuhruf", "Duhân", "Câsiye", "Ahkâf", "Muhammed", "Fetih", "Hucurât", "Kâf", "Zâriyât", "Tûr", "Necm", "Kamer", "Rahmân", "Vâkıa", "Hadîd", "Mücâdele", "Haşr", "Mümtehine", "Saf", "Cuma", "Münâfikûn", "Teğâbün", "Talâk", "Tahrîm", "Mülk", "Kalem", "Hâkka", "Meâric", "Nûh", "Cin", "Müzzemmil", "Müddessir", "Kıyâme", "İnsân", "Mürselât", "Nebe'", "Nâziât", "Abese", "Tekvîr", "İnfitâr", "Mutaffifîn", "İnşikâk", "Bürûc", "Târık", "A'lâ", "Gâşiye", "Fecr", "Beled", "Şems", "Leyl", "Duhâ", "İnşirâh", "Tîn", "Alak", "Kadr", "Beyyine", "Zilzâl", "Âdiyât", "Kâria", "Tekâsür", "Asr", "Hümeze", "Fîl", "Kureyş", "Mâûn", "Kevser", "Kâfirûn", "Nasr", "Tebbet", "İhlâs", "Felak", "Nâs"];
+const NUZUL_SIRASI = [96, 68, 73, 74, 1, 111, 81, 87, 92, 89, 93, 94, 103, 100, 108, 102, 107, 109, 105, 113, 114, 112, 53, 80, 97, 91, 85, 95, 106, 101, 75, 104, 77, 50, 90, 86, 54, 38, 7, 72, 36, 25, 35, 19, 20, 56, 26, 27, 28, 17, 10, 11, 12, 15, 6, 37, 31, 34, 39, 40, 41, 42, 43, 44, 45, 46, 51, 88, 18, 16, 71, 14, 21, 23, 32, 52, 67, 69, 70, 78, 79, 82, 84, 30, 29, 83, 2, 8, 3, 33, 60, 4, 99, 57, 47, 13, 55, 76, 65, 98, 59, 24, 22, 63, 58, 49, 66, 64, 61, 62, 48, 5, 9, 110];
+
 export default function OkumaEkrani() {
-  const insets = useSafeAreaInsets(); // Sistem saatinin/çentiğin boyutunu otomatik hesaplar
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { sureId, hedefAyet } = useLocalSearchParams();
-  // Filtreleri store'dan çekiyoruz
+  
+  // inisSirasinaGore store'dan eklendi
   const { 
     yaziBoyutu, setYaziBoyutu, 
     seciliYazarlar, setSonOkunan,
-    arapcaGoster, kelimeGoster, karanlikMod 
+    arapcaGoster, kelimeGoster, karanlikMod,
+    inisSirasinaGore 
   } = useStore();
   
   const [ayetler, setAyetler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
   const flatListRef = useRef(null);
 
-  const SURE_ADLARI = ["", "Fatiha", "Bakara", "Âl-i İmrân", "Nisâ", "Mâide", "En'âm", "A'râf", "Enfâl", "Tevbe", "Yûnus", "Hûd", "Yûsuf", "Ra'd", "İbrâhîm", "Hicr", "Nahl", "İsrâ", "Kehf", "Meryem", "Tâhâ", "Enbiyâ", "Hac", "Mü'minûn", "Nûr", "Furkân", "Şuarâ", "Neml", "Kasas", "Ankebût", "Rûm", "Lokmân", "Secde", "Ahzâb", "Sebe'", "Fâtır", "Yâsîn", "Sâffât", "Sâd", "Zümer", "Mü'min", "Fussilet", "Şûrâ", "Zuhruf", "Duhân", "Câsiye", "Ahkâf", "Muhammed", "Fetih", "Hucurât", "Kâf", "Zâriyât", "Tûr", "Necm", "Kamer", "Rahmân", "Vâkıa", "Hadîd", "Mücâdele", "Haşr", "Mümtehine", "Saf", "Cuma", "Münâfikûn", "Teğâbün", "Talâk", "Tahrîm", "Mülk", "Kalem", "Hâkka", "Meâric", "Nûh", "Cin", "Müzzemmil", "Müddessir", "Kıyâme", "İnsân", "Mürselât", "Nebe'", "Nâziât", "Abese", "Tekvîr", "İnfitâr", "Mutaffifîn", "İnşikâk", "Bürûc", "Târık", "A'lâ", "Gâşiye", "Fecr", "Beled", "Şems", "Leyl", "Duhâ", "İnşirâh", "Tîn", "Alak", "Kadr", "Beyyine", "Zilzâl", "Âdiyât", "Kâria", "Tekâsür", "Asr", "Hümeze", "Fîl", "Kureyş", "Mâûn", "Kevser", "Kâfirûn", "Nasr", "Tebbet", "İhlâs", "Felak", "Nâs"];
-
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems && viewableItems.length > 0) {
       const ekrandakiVeri = viewableItems[0].item; 
       if (ekrandakiVeri && ekrandakiVeri.sure_no && ekrandakiVeri.ayet_no) {
         const sureAdi = SURE_ADLARI[ekrandakiVeri.sure_no];
-        // Zustand'ın fonksiyonunu doğrudan çağırıyoruz (Veri kaybını %100 önler)
         useStore.getState().setSonOkunan(ekrandakiVeri.sure_no, ekrandakiVeri.ayet_no, `${ekrandakiVeri.sure_no}. ${sureAdi} Suresi`);
       }
     }
   }).current;
 
-  // ÇÖZÜM BURADA: Ayet kutuları ekranı aşacak kadar uzun olduğu için kuralı esnettik
   const viewabilityConfig = useRef({ 
-    itemVisiblePercentThreshold: 10, // Kutunun sadece %10'u ekrana girse bile algıla
-    minimumViewTime: 250 // Saniyenin çeyreği kadar ekranda durursa kaydet (Hızlıca aşağı kaydırmaları atlar)
+    itemVisiblePercentThreshold: 10,
+    minimumViewTime: 250 
   }).current;
 
   useEffect(() => {
@@ -55,15 +57,11 @@ export default function OkumaEkrani() {
   }, [sureId, hedefAyet, seciliYazarlar]);
 
   const verileriGetir = () => {
-    // 1. KORUMA KALKANI: Eğer ayarlar açıldığında Expo sureId'yi unutursa, listeyi boşaltmasını engelliyoruz!
     if (!sureId) return;
 
     setYukleniyor(true);
-    // 2. KORUMA KALKANI: setAyetler([]) komutunu tamamen SİLDİK! 
-    // Böylece filtre değiştirirken ekran asla bembeyaz (boş) kalmayacak.
     
     try {
-      // 2. KORUMA: Artık yeni bağlantı açmıyoruz, yukarıdaki kasadan hazır olanı alıyoruz!
       const db = getDb();
 
       const idStr = Array.isArray(sureId) ? sureId[0] : sureId;
@@ -82,7 +80,6 @@ export default function OkumaEkrani() {
       let meallerResult = [];
       if (temizYazarlar.length > 0) {
         const placeholders = temizYazarlar.map(() => '?').join(',');
-        // 2. YENİ TABLO SÜTUNU: "yazar_adi" kullanıyoruz
         const sql = `SELECT * FROM Mealler WHERE sure_no = ? AND yazar_adi IN (${placeholders}) ORDER BY yazar_adi ASC`;
         const queryParams = [queryId, ...temizYazarlar];
         meallerResult = db.getAllSync(sql, queryParams);
@@ -105,7 +102,6 @@ export default function OkumaEkrani() {
             if (flatListRef.current) flatListRef.current.scrollToIndex({ index: index, animated: false, viewPosition: 0 });
           }, 500); 
         }
-        // Kamera Yedeği: Hedef ayete gidilirse o ayeti kaydet
         setSonOkunan(queryId, hAyetNo, `${queryId}. ${SURE_ADLARI[queryId]} Suresi`);
       } 
     } catch (error) {
@@ -114,7 +110,6 @@ export default function OkumaEkrani() {
     }
   };
 
-  // Dinamik Temalar
   const themeBg = karanlikMod ? '#121212' : '#f5f6fa';
   const cardBg = karanlikMod ? '#1E1E1E' : 'white';
   const textColor = karanlikMod ? '#E0E0E0' : '#222';
@@ -125,12 +120,8 @@ export default function OkumaEkrani() {
 
   const renderAyet = ({ item }) => (
     <View style={[styles.ayetKutusu, { backgroundColor: cardBg }]}>
-      
-      {/* Ayet Numarası HER ZAMAN GÖRÜNECEK */}
       <View style={[styles.ustKisim, { borderBottomColor: borderColor }]}>
         <Text style={styles.ayetNoBadge}>{item.ayet_no}</Text>
-        
-        {/* 3. FİLTRE: Sadece Arapça ve Okunuş kısmı filtreye tabi olacak */}
         {arapcaGoster && (
           <>
             <Text style={[styles.arapcaMetin, { fontSize: yaziBoyutu + 8, color: textColor }]}>{item.arapca}</Text>
@@ -139,7 +130,6 @@ export default function OkumaEkrani() {
         )}
       </View>
 
-      {/* 4. FİLTRE: Kelime analiz kısmı 'kelimeGoster' true ise render edilir */}
       {kelimeGoster && (
         <View style={[styles.kelimeKutusu, { backgroundColor: wordContainerBg }]}>
           <View style={styles.kelimelerWrapper}>
@@ -169,19 +159,66 @@ export default function OkumaEkrani() {
   const sNo = parseInt(Array.isArray(sureId) ? sureId[0] : sureId, 10);
   const sureEkraniBaslik = (sNo > 0 && sNo <= 114) ? `${sNo}. ${SURE_ADLARI[sNo]} Suresi` : `${sNo}. Sure`;
 
+  // SONRAKİ SURE HESAPLAMA MANTIĞI
+  let sonrakiSureId = null;
+  if (sNo > 0 && sNo <= 114) {
+    if (inisSirasinaGore) {
+      const mevcutIndex = NUZUL_SIRASI.indexOf(sNo);
+      if (mevcutIndex !== -1 && mevcutIndex < NUZUL_SIRASI.length - 1) {
+        sonrakiSureId = NUZUL_SIRASI[mevcutIndex + 1];
+      }
+    } else {
+      if (sNo < 114) {
+        sonrakiSureId = sNo + 1;
+      }
+    }
+  }
+
+  // LİSTE SONU BUTONU (FOOTER)
+  const renderFooter = () => {
+    if (!sonrakiSureId) return <View style={{ height: 40 }} />; // Son suredeyse boşluk bırak
+    
+    const sonrakiSureAdi = SURE_ADLARI[sonrakiSureId];
+    const detayMetni = inisSirasinaGore 
+      ? `İniş: ${NUZUL_SIRASI.indexOf(sonrakiSureId) + 1}. Sure`
+      : `Mushaf: ${sonrakiSureId}. Sure`;
+
+    return (
+      <View style={{ marginTop: 10, marginBottom: 40, alignItems: 'stretch' }}>
+        <TouchableOpacity
+          onPress={() => router.replace(`/oku/${sonrakiSureId}`)}
+          style={{
+            backgroundColor: karanlikMod ? '#1E2B1E' : '#E8F5E9',
+            paddingVertical: 15,
+            paddingHorizontal: 20,
+            borderRadius: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderWidth: 1,
+            borderColor: karanlikMod ? '#2E4C2E' : '#C8E6C9',
+          }}
+        >
+          <View style={{ flex: 1, marginRight: 15 }}>
+            <Text style={{ fontSize: 13, color: karanlikMod ? '#A5D6A7' : '#388E3C', marginBottom: 4 }}>Sonraki Sure'ye Geç</Text>
+            <Text style={{ fontSize: 17, fontWeight: 'bold', color: karanlikMod ? '#E8F5E9' : '#1B5E20' }}>{sonrakiSureAdi}</Text>
+            <Text style={{ fontSize: 12, fontStyle: 'italic', color: karanlikMod ? '#81C784' : '#4CAF50', marginTop: 2 }}>{detayMetni}</Text>
+          </View>
+          <Ionicons name="arrow-forward-circle" size={38} color={karanlikMod ? '#A5D6A7' : '#4CAF50'} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: themeBg }]}>
-      {/* 1. YENİ: Expo'nun o üstteki devasa barını tamamen gizliyoruz! */}
       <Stack.Screen options={{ headerShown: false }} />
       
-      {/* 2. YENİ: Özel barımız. İçine Geri butonunu, sure adını ve font butonlarını koyduk */}
       <View style={[styles.ustAyarlar, { 
         backgroundColor: cardBg, 
         borderBottomColor: borderColor, 
-        paddingTop: insets.top + 10 // Barı saat hizasından güvenli bir şekilde aşağı iter
+        paddingTop: insets.top + 10
       }]}>
-        
-        {/* Sol Taraf: Geri Butonu ve Sure Adı */}
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
           <TouchableOpacity 
             onPress={() => router.back()} 
@@ -194,7 +231,6 @@ export default function OkumaEkrani() {
           </Text>
         </View>
 
-        {/* Sağ Taraf: Font Butonları */}
         <View style={styles.fontAyarKutusu}>
           <TouchableOpacity onPress={() => setYaziBoyutu(Math.max(12, yaziBoyutu - 2))} style={[styles.fontButon, { backgroundColor: karanlikMod ? '#2A3B2A' : '#E8F5E9' }]}>
             <Text style={styles.fontButonYazi}>A-</Text>
@@ -210,15 +246,13 @@ export default function OkumaEkrani() {
         data={ayetler}
         keyExtractor={(item) => item.ayet_no.toString()}
         renderItem={renderAyet}
+        ListFooterComponent={renderFooter}
         contentContainerStyle={{ padding: 15 }}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         onScrollToIndexFailed={info => {
-          // 1. Önce tahmini olarak o bölgeye kaydırıp FlatList'i orayı çizmeye zorluyoruz
           const offset = (info.averageItemLength || 500) * info.index;
           flatListRef.current?.scrollToOffset({ offset, animated: false });
-          
-          // 2. O bölge saniyeler içinde çizildikten sonra tam nokta atışı gidiyoruz
           setTimeout(() => {
             flatListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0 });
           }, 200);
@@ -228,7 +262,6 @@ export default function OkumaEkrani() {
   );
 }
 
-// Stillerin ana iskeleti - Renkler yukarıda dinamik olarak verildi
 const styles = StyleSheet.create({
   container: { flex: 1 },
   merkez: { flex: 1, justifyContent: 'center', alignItems: 'center' },
