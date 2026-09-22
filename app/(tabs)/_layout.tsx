@@ -101,17 +101,21 @@ export default function RootLayout() {
             name="index"
             options={{
               title: 'e-Meal',
+              headerTitleAlign: 'left',
               headerRight: () => (
                 <TouchableOpacity 
-                  onPress={() => router.push('/ayarlar')}
-                  style={{ 
-                    backgroundColor: karanlikMod ? '#2C2C2C' : '#fff', 
-                    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 6, borderRadius: 22, marginRight: 5, elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2 
-                  }}
-                >
-                  <Ionicons name="settings-sharp" size={16} color="#4CAF50" style={{ marginRight: 6 }} />
-                  <Text style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: 16 }}>Ayarlar</Text>
-                </TouchableOpacity>
+              onPress={() => router.push('/ayarlar')}
+              style={{ 
+                backgroundColor: karanlikMod ? '#2C2C2C' : '#fff', 
+                flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 6, borderRadius: 22, marginRight: 5, 
+                elevation: 3, // Android için dışa kabartma
+                shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 3, shadowOffset: { width: 0, height: 2 }, // iOS çukur etkisini çözen aşağı yönlü gölge
+                borderWidth: 0 // iOS'ta oluşabilen hayalet çerçeveyi kesin olarak yok eder
+              }}
+            >
+              <Ionicons name="settings-sharp" size={16} color="#4CAF50" style={{ marginRight: 6 }} />
+              <Text style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: 16 }}>Ayarlar</Text>
+            </TouchableOpacity>
               ),
             }}
           />

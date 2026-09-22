@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useStore } from '../../store';
 
 const TUM_SURELER = [
@@ -22,6 +22,16 @@ const TUM_SURELER = [
 // Diyanet Nüzul (İniş) Sıralaması Referansı
 const NUZUL_SIRASI = [96, 68, 73, 74, 1, 111, 81, 87, 92, 89, 93, 94, 103, 100, 108, 102, 107, 109, 105, 113, 114, 112, 53, 80, 97, 91, 85, 95, 106, 101, 75, 104, 77, 50, 90, 86, 54, 38, 7, 72, 36, 25, 35, 19, 20, 56, 26, 27, 28, 17, 10, 11, 12, 15, 6, 37, 31, 34, 39, 40, 41, 42, 43, 44, 45, 46, 51, 88, 18, 16, 71, 14, 21, 23, 32, 52, 67, 69, 70, 78, 79, 82, 84, 30, 29, 83, 2, 8, 3, 33, 60, 4, 99, 57, 47, 13, 55, 76, 65, 98, 59, 24, 22, 63, 58, 49, 66, 64, 61, 62, 48, 5, 9, 110];
 
+// YENİ: Arama yaparken şapkalı harfleri (Â, û), tireleri ve boşlukları yok sayan akıllı temizleyici
+const metniTemizle = (metin) => {
+  if (!metin) return '';
+  return metin
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFD') // Harfleri ve şapkaları birbirinden ayırır (Örn: Â -> a + ^)
+    .replace(/[\u0300-\u036f]/g, '') // Ayırılan o görünmez şapkaları siler
+    .replace(/[-'\s]/g, ''); // Tire, kesme işareti ve boşlukları siler (Örn: Âl-i İmrân -> aliimran)
+};
+
 export default function IndexScreen() {
   const router = useRouter();
   const { sonOkunan, karanlikMod, inisSirasinaGore } = useStore(); 
@@ -33,7 +43,7 @@ export default function IndexScreen() {
   const [sureAramaMetni, setSureAramaMetni] = useState('');
 
   const hizliOneriler = TUM_SURELER.filter(sure => 
-    sure.ad.toLocaleLowerCase('tr-TR').startsWith(hizliSureMetni.toLocaleLowerCase('tr-TR'))
+    metniTemizle(sure.ad).includes(metniTemizle(hizliSureMetni))
   );
 
   // ZEKİ SIRALAMA: Eğer ayar açıksa dizilimi Nüzul sırasına göre yap, kapalıysa numarasına göre (Mushaf) bırak
@@ -42,15 +52,16 @@ export default function IndexScreen() {
     : TUM_SURELER;
 
   const filtrelenmisSureler = siraliSureler.filter(sure => 
-    sure.ad.toLocaleLowerCase('tr-TR').startsWith(sureAramaMetni.toLocaleLowerCase('tr-TR'))
+    metniTemizle(sure.ad).includes(metniTemizle(sureAramaMetni))
   );
 
   const hizliGit = () => {
+    Keyboard.dismiss(); // ÇÖZÜM: Sureye giderken klavyeyi kapatır, geri dönünce açık kalmasını önler!
     let hedefSureId = hizliSureId;
-    if (!hedefSureId) {
-       const exactMatch = TUM_SURELER.find(s => s.ad.toLocaleLowerCase('tr-TR') === hizliSureMetni.toLocaleLowerCase('tr-TR'));
+   if (!hedefSureId) {
+       const exactMatch = TUM_SURELER.find(s => metniTemizle(s.ad) === metniTemizle(hizliSureMetni));
        if (exactMatch) hedefSureId = exactMatch.id;
-    }
+    } 
 
     if (hedefSureId) {
       router.push(`/oku/${hedefSureId}?hedefAyet=${aramaAyet || 1}`);
@@ -77,7 +88,10 @@ export default function IndexScreen() {
       {sonOkunan && (
         <TouchableOpacity 
           style={[styles.sonOkunanKutusu, karanlikMod && { backgroundColor: '#2A3B2A' }]}
-          onPress={() => router.push(`/oku/${sonOkunan.sure}?hedefAyet=${sonOkunan.ayet}`)}
+          onPress={() => {
+            Keyboard.dismiss();
+            router.push(`/oku/${sonOkunan.sure}?hedefAyet=${sonOkunan.ayet}`);
+          }}
         >
           <Text style={[styles.sonOkunanBaslik, karanlikMod && { color: '#81C784' }]}>Kaldığın Yerden Devam Et</Text>
           <Text style={[styles.sonOkunanYazi, karanlikMod && { color: '#E8F5E9' }]}>{sonOkunan.sureAd} - {sonOkunan.ayet}. Ayet</Text>
@@ -102,6 +116,8 @@ export default function IndexScreen() {
               placeholder="Sure Adı (Ör: Fatiha)" 
               placeholderTextColor={subTextColor}
               value={hizliSureMetni} 
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
               onChangeText={(text) => {
                 setHizliSureMetni(text);
                 setHizliSureId(null);
@@ -135,9 +151,12 @@ export default function IndexScreen() {
             placeholder="Ayet No" 
             placeholderTextColor={subTextColor}
             keyboardType="number-pad" 
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
             value={aramaAyet} 
             onChangeText={setAramaAyet} 
           />
+
           <TouchableOpacity style={styles.gitButon} onPress={hizliGit}>
             <Text style={styles.gitButonYazi}>Git</Text>
           </TouchableOpacity>
@@ -152,6 +171,8 @@ export default function IndexScreen() {
           placeholder="Sure Ara (Örn: Yasin)" 
           placeholderTextColor={subTextColor}
           value={sureAramaMetni}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
           onChangeText={setSureAramaMetni}
         />
       </View>
@@ -160,10 +181,14 @@ export default function IndexScreen() {
         data={filtrelenmisSureler}
         keyExtractor={(item) => item.id.toString()}
         keyboardShouldPersistTaps="handled" 
+        keyboardDismissMode="on-drag" // ÇÖZÜM: iOS'ta listeyi hafifçe aşağı kaydırdığın an klavye gizlenir
         renderItem={({ item }) => (
           <TouchableOpacity 
             style={[styles.sureKart, { backgroundColor: cardBg }]}
-            onPress={() => router.push(`/oku/${item.id}`)}
+            onPress={() => {
+              Keyboard.dismiss(); // Sureye tıklayınca da klavyeyi öldürür
+              router.push(`/oku/${item.id}`);
+            }}
           >
             <View style={[styles.sureNoYuvarlak, karanlikMod && { backgroundColor: '#2A3B2A' }]}>
               <Text style={styles.sureNoYazi}>{item.id}</Text>

@@ -1,6 +1,7 @@
 // @ts-nocheck
 // @ts-nocheck
 import { Ionicons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router'; // YENİ: Stack ve Router eklendi
 import React, { useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useStore } from '../../store';
@@ -14,6 +15,7 @@ const YAZARLAR = [
 ];
 
 export default function AyarlarEkrani() {
+  const router = useRouter(); // YENİ: Geri butonu için eklendi
   const [tiklamaSayisi, setTiklamaSayisi] = useState(0);
 
   const gizliOdaTetikle = () => {
@@ -64,9 +66,27 @@ export default function AyarlarEkrani() {
   const subTextColor = karanlikMod ? '#A0A0A0' : '#888';
   const borderColor = karanlikMod ? '#333' : '#f0f0f0';
 
+ // YENİ: Switchler için iOS uyumlu ortak renk ayarları
+  const trackOffColor = karanlikMod ? '#555555' : '#c4c4c4'; // Gündüz daha belirgin gri, gece aynı
+  const trackOnColor = '#4CAF50';
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: themeBg }]} contentContainerStyle={{ paddingBottom: 40 }}>
       
+      {/* YENİ: iOS'ta kaybolan geri butonunu Header'a zorla ve şık bir şekilde ekliyoruz */}
+      <Stack.Screen 
+        options={{ 
+          title: 'Ayarlar',
+          headerStyle: { backgroundColor: cardBg },
+          headerTintColor: textColor,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 5, marginRight: 15, padding: 5 }}>
+              <Ionicons name="arrow-back" size={24} color={textColor} />
+            </TouchableOpacity>
+          )
+        }} 
+      />
+
       <Text style={[styles.kategoriBaslik, { color: subTextColor }]}>Görünüm ve Sıralama</Text>
       <View style={[styles.kutu, { backgroundColor: cardBg }]}>
         <View style={[styles.ayarSatiri, { borderBottomWidth: 1, borderBottomColor: borderColor }]}>
@@ -74,14 +94,25 @@ export default function AyarlarEkrani() {
             <Ionicons name="moon" size={20} color={subTextColor} style={styles.ikon} />
             <Text style={[styles.ayarMetin, { color: textColor }]}>Karanlık Mod</Text>
           </View>
-          <Switch value={karanlikMod} onValueChange={setKaranlikMod} trackColor={{ false: '#d3d3d3', true: '#4CAF50' }} />
+          {/* YENİ: ios_backgroundColor ile gündüz modunda hayalet gibi kaybolması önlendi */}
+          <Switch 
+            value={karanlikMod} 
+            onValueChange={setKaranlikMod} 
+            trackColor={{ false: trackOffColor, true: trackOnColor }} 
+            ios_backgroundColor={trackOffColor}
+          />
         </View>
         <View style={styles.ayarSatiri}>
           <View style={styles.ayarSol}>
             <Ionicons name="swap-vertical" size={20} color={subTextColor} style={styles.ikon} />
             <Text style={[styles.ayarMetin, { color: textColor }]}>İniş Sırasına Göre Diz (Nüzul)</Text>
           </View>
-          <Switch value={inisSirasinaGore} onValueChange={setInisSirasinaGore} trackColor={{ false: '#d3d3d3', true: '#4CAF50' }} />
+          <Switch 
+            value={inisSirasinaGore} 
+            onValueChange={setInisSirasinaGore} 
+            trackColor={{ false: trackOffColor, true: trackOnColor }} 
+            ios_backgroundColor={trackOffColor}
+          />
         </View>
       </View>
 
@@ -92,14 +123,24 @@ export default function AyarlarEkrani() {
             <Ionicons name="book" size={20} color={subTextColor} style={styles.ikon} />
             <Text style={[styles.ayarMetin, { color: textColor }]}>Arapça Metni Göster</Text>
           </View>
-          <Switch value={arapcaGoster} onValueChange={setArapcaGoster} trackColor={{ false: '#d3d3d3', true: '#4CAF50' }} />
+          <Switch 
+            value={arapcaGoster} 
+            onValueChange={setArapcaGoster} 
+            trackColor={{ false: trackOffColor, true: trackOnColor }} 
+            ios_backgroundColor={trackOffColor}
+          />
         </View>
         <View style={styles.ayarSatiri}>
           <View style={styles.ayarSol}>
             <Ionicons name="list" size={20} color={subTextColor} style={styles.ikon} />
             <Text style={[styles.ayarMetin, { color: textColor }]}>Kelime Analizini Göster</Text>
           </View>
-          <Switch value={kelimeGoster} onValueChange={setKelimeGoster} trackColor={{ false: '#d3d3d3', true: '#4CAF50' }} />
+          <Switch 
+            value={kelimeGoster} 
+            onValueChange={setKelimeGoster} 
+            trackColor={{ false: trackOffColor, true: trackOnColor }} 
+            ios_backgroundColor={trackOffColor}
+          />
         </View>
       </View>
 

@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as SQLite from 'expo-sqlite';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../../store';
 
@@ -35,34 +35,34 @@ export default function OkumaEkrani() {
   const [ayetler, setAyetler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
   
-  // YENİ: Çizginin akıcı (smooth) dolması için animasyon motoru ve toplam ayet referansı
+  // Çizginin akıcı (smooth) dolması için animasyon motoru ve toplam ayet referansı
   const progressAnim = useRef(new Animated.Value(0)).current;
   const toplamAyetRef = useRef(0);
   
+  // YENİ: Ajanda İpi (Kurdele) Animasyonu ve Görünen Ayet Referansı
+  const ribbonAnim = useRef(new Animated.Value(0)).current;
+  const gorunenAyetRef = useRef(null);
+
   const flatListRef = useRef(null);
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems && viewableItems.length > 0) {
       
-      // 1. Son okunan ayeti kaydetme (En üstteki ayet)
+      // 1. Ekranda görünen en üstteki ayeti SADECE HAFIZAYA alıyoruz (Otomatik kaydetmeyi iptal ettik)
       const ekrandakiVeri = viewableItems[0].item; 
       if (ekrandakiVeri && ekrandakiVeri.sure_no && ekrandakiVeri.ayet_no) {
-        const sureAdi = SURE_ADLARI[ekrandakiVeri.sure_no];
-        useStore.getState().setSonOkunan(ekrandakiVeri.sure_no, ekrandakiVeri.ayet_no, `${ekrandakiVeri.sure_no}. ${sureAdi} Suresi`);
+        gorunenAyetRef.current = ekrandakiVeri;
       }
 
-      // 2. YENİ: İlerleme Çubuğu Mantığı (Zıplamayı Önler!)
-      // Ekranda görünen EN ALTTAKİ ayete bakar. Örneğin 286 ayetlik surede ekranda 14. ayet varsa %5 civarı çizer.
+      // 2. İlerleme Çubuğu Mantığı (Zıplamayı Önler!)
       if (toplamAyetRef.current > 0) {
         const sonGorunenAyet = viewableItems[viewableItems.length - 1].item;
         if (sonGorunenAyet) {
           const yuzde = (sonGorunenAyet.ayet_no / toplamAyetRef.current) * 100;
-          
-          // Çizgiyi anında koparmak yerine bir sıvı gibi akıtır (duration: 300ms)
           Animated.timing(progressAnim, {
             toValue: yuzde,
             duration: 300,
-            useNativeDriver: false // Genişlik animasyonlarında false olmalıdır
+            useNativeDriver: false
           }).start();
         }
       }
@@ -74,6 +74,50 @@ export default function OkumaEkrani() {
     minimumViewTime: 250 
   }).current;
 
+  // YENİ: Ajanda İpine tıklandığında çalışacak olan fonksiyon
+  const ayetiKaydetSorgusu = () => {
+    if (!gorunenAyetRef.current) return;
+
+    // Tekrar kaydırma animasyonuna dönüyoruz (Çok daha akıcıdır)
+    Animated.timing(ribbonAnim, {
+      toValue: 20, // 20 piksel sağa çık
+      duration: 200,
+      useNativeDriver: true 
+    }).start();
+
+    const currentSureAdi = SURE_ADLARI[gorunenAyetRef.current.sure_no];
+    
+    Alert.alert(
+      "Kaldığın Yeri Kaydet",
+      `Şu an ${currentSureAdi} Suresi, ${gorunenAyetRef.current.ayet_no}. Ayettesiniz.\n\nKaldığınız yeri burası olarak kaydetmek istiyor musunuz?`,
+      [
+        {
+          text: "İptal",
+          style: "cancel",
+          onPress: () => {
+            Animated.timing(ribbonAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+          }
+        },
+        {
+          text: "Evet, Kaydet",
+          onPress: () => {
+            // 1. Veritabanına kaydet
+            useStore.getState().setSonOkunan(
+              gorunenAyetRef.current.sure_no, 
+              gorunenAyetRef.current.ayet_no, 
+              `${gorunenAyetRef.current.sure_no}. ${currentSureAdi} Suresi`
+            );
+            
+            // 2. İpi animasyonla geri çek ve biter bitmez ana sayfaya dön
+            Animated.timing(ribbonAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+              router.replace('/'); // Ana sayfaya (Kaldığın Yer ekranına) pürüzsüz geçiş
+            });
+          }
+        }
+      ]
+    );
+  };
+
   useEffect(() => {
     if (sureId) verileriGetir();
   }, [sureId, hedefAyet, seciliYazarlar]);
@@ -82,7 +126,7 @@ export default function OkumaEkrani() {
     if (!sureId) return;
 
     setYukleniyor(true);
-    progressAnim.setValue(0); // YENİ: Sure değiştiğinde çizgiyi en başa (sıfıra) çeker
+    progressAnim.setValue(0); 
     
     try {
       const db = getDb();
@@ -114,7 +158,6 @@ export default function OkumaEkrani() {
         mealler: meallerResult.filter(m => m.ayet_no === ayet.ayet_no)
       }));
 
-      // YENİ: Surenin toplam ayet sayısını referansa kaydediyoruz
       toplamAyetRef.current = birlestirilmisVeri.length;
 
       setAyetler(birlestirilmisVeri);
@@ -128,6 +171,7 @@ export default function OkumaEkrani() {
             if (flatListRef.current) flatListRef.current.scrollToIndex({ index: index, animated: false, viewPosition: 0 });
           }, 500); 
         }
+        // Eğer kullanıcı dışarıdan (ana sayfadan) özel bir ayete tıklayarak geldiyse bu yeri manuel olarak okumaya niyetli demektir, o yüzden bunu kaydetmeye devam ediyoruz.
         setSonOkunan(queryId, hAyetNo, `${queryId}. ${SURE_ADLARI[queryId]} Suresi`);
       } 
     } catch (error) {
@@ -252,8 +296,13 @@ export default function OkumaEkrani() {
           >
             <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
+          
           <Text style={[styles.sureBaslik, { color: textColor }]} numberOfLines={1}>
             {sureEkraniBaslik}
+          </Text>
+          {/* YENİ: Sure adının hemen yanında zarifçe duran ayet sayısı */}
+          <Text style={{ fontSize: 13, color: subTextColor, marginLeft: 8, marginTop: 2, fontWeight: '500' }}>
+            {ayetler.length} ay.
           </Text>
         </View>
 
@@ -267,7 +316,7 @@ export default function OkumaEkrani() {
         </View>
       </View>
 
-      {/* YENİ: ZEKİ VE AKICI OKUMA İLERLEME ÇUBUĞU (Animasyonlu) */}
+      {/* ZEKİ VE AKICI OKUMA İLERLEME ÇUBUĞU */}
       <View style={{ height: 3, width: '100%', backgroundColor: karanlikMod ? '#2A3B2A' : '#E8F5E9' }}>
         <Animated.View style={{ 
           height: '100%', 
@@ -279,6 +328,27 @@ export default function OkumaEkrani() {
         }} />
       </View>
       
+      {/* YENİ: Manuel Kayıt İçin Dikişli Kırmızı Ajanda İpi (Kurdele) */}
+      <Animated.View style={[
+        styles.ajandaIpiContainer, 
+        { 
+          top: insets.top + 75, 
+          transform: [{ translateX: ribbonAnim }]
+        }
+      ]}>
+        <TouchableOpacity onPress={ayetiKaydetSorgusu} activeOpacity={0.8} style={styles.ajandaWrapper}>
+          {/* İpin Ana Gövdesi ve Dikişler */}
+          <View style={styles.ajandaIpiBody}>
+            <View style={styles.ajandaIpiDikis} />
+          </View>
+          {/* İpin Çatallı (V-Kesim) Ucu */}
+          <View style={styles.ajandaIpiTail}>
+            <View style={styles.tailTop} />
+            <View style={styles.tailBottom} />
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+
       <FlatList
         ref={flatListRef}
         data={ayetler}
@@ -288,7 +358,6 @@ export default function OkumaEkrani() {
         contentContainerStyle={{ padding: 15 }}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        // onScroll ve scrollEventThrottle buradan KESİNLİKLE SİLİNDİ! Zıplamaya yer yok.
         onScrollToIndexFailed={info => {
           const offset = (info.averageItemLength || 500) * info.index;
           flatListRef.current?.scrollToOffset({ offset, animated: false });
@@ -322,5 +391,52 @@ const styles = StyleSheet.create({
   meallerKutusu: {},
   tekilMeal: { marginBottom: 15, paddingLeft: 10, borderLeftWidth: 3, borderLeftColor: '#4CAF50' },
   yazarIsmi: { fontSize: 12, fontWeight: 'bold', marginBottom: 3 },
-  mealMetni: { lineHeight: 24 }
+  mealMetni: { lineHeight: 24 },
+  
+  /* YENİ: Ajanda İpi Stilleri */
+  ajandaIpiContainer: {
+    position: 'absolute',
+    left: -50, 
+    zIndex: 999,
+  },
+  ajandaWrapper: {
+    flexDirection: 'row', // Gövde ve çatal ucu yan yana dizer
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 8,
+  },
+  ajandaIpiBody: {
+    width: 70, 
+    height: 36,
+    backgroundColor: '#B71C1C', 
+  },
+  ajandaIpiDikis: {
+    position: 'absolute',
+    top: 3, bottom: 3, left: 3, right: 2, // Dikiş tam kesik başlamadan bitiyor
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.5)', 
+    borderStyle: 'dashed',
+    borderRadius: 4,
+  },
+  ajandaIpiTail: {
+    width: 12,
+    height: 36,
+    flexDirection: 'column',
+  },
+  tailTop: {
+    width: 0, height: 0,
+    borderTopWidth: 18,
+    borderTopColor: '#B71C1C',
+    borderRightWidth: 12,
+    borderRightColor: 'transparent',
+  },
+  tailBottom: {
+    width: 0, height: 0,
+    borderBottomWidth: 18,
+    borderBottomColor: '#B71C1C',
+    borderRightWidth: 12,
+    borderRightColor: 'transparent',
+  },
 });
