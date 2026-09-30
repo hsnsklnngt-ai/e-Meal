@@ -45,6 +45,10 @@ export default function OkumaEkrani() {
   const fontIslemRef = useRef(false); // YENİ: Sonsuz döngüyü engelleyecek kilit!
 
   const scrollDenemeRef = useRef(0);
+  const girisOpacity = useRef(new Animated.Value(1)).current;
+const revealTimerRef = useRef(null);
+const basarisizRef = useRef(false);
+const [konumlaniyor, setKonumlaniyor] = useState(false);
   const listeOpacity = useRef(new Animated.Value(1)).current;
 
   const flatListRef = useRef(null);
@@ -129,6 +133,23 @@ export default function OkumaEkrani() {
   setYaziBoyutu(yeniBoyut);
 };
 
+// Liste hedefe oturunca yumuşakça göster
+const gosterListe = () => {
+  Animated.timing(girisOpacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  setKonumlaniyor(false);
+};
+
+// Hedef ayete kaydır; başarılıysa kısa süre bekleyip listeyi göster
+const hedefeKaydir = (index) => {
+  if (!flatListRef.current) return;
+  clearTimeout(revealTimerRef.current);
+  basarisizRef.current = false;
+  flatListRef.current.scrollToIndex({ index, animated: false, viewPosition: 0 });
+  if (!basarisizRef.current) {
+    revealTimerRef.current = setTimeout(gosterListe, 350);
+  }
+};
+
   useEffect(() => {
     if (sureId) verileriGetir();
   }, [sureId, hedefAyet, seciliYazarlar]);
@@ -176,15 +197,20 @@ export default function OkumaEkrani() {
       setYukleniyor(false);
       
      if (hedefAyet) {
-        const hAyetNo = parseInt(Array.isArray(hedefAyet) ? hedefAyet[0] : hedefAyet, 10);
-        const index = birlestirilmisVeri.findIndex(a => a.ayet_no === hAyetNo);
-        if (index !== -1) {
-          setTimeout(() => {
-            if (flatListRef.current) flatListRef.current.scrollToIndex({ index: index, animated: false, viewPosition: 0 });
-          }, 500); 
-        }
-        // Otomatik kaydetme iptal edildi. Artık sadece Ajanda İpi ile manuel kayıt yapılacak!
-      }  
+  const hAyetNo = parseInt(Array.isArray(hedefAyet) ? hedefAyet[0] : hedefAyet, 10);
+  const index = birlestirilmisVeri.findIndex(a => a.ayet_no === hAyetNo);
+  if (index > 0) {
+    girisOpacity.setValue(0); // Liste görünmez başlasın
+    setKonumlaniyor(true);
+    scrollDenemeRef.current = 0;
+    setTimeout(() => hedefeKaydir(index), 300);
+    setTimeout(gosterListe, 5000); // Güvenlik: bir şey ters giderse en geç 5 sn'de göster
+  } else {
+    girisOpacity.setValue(1);
+  }
+} else {
+  girisOpacity.setValue(1);
+}
     } catch (error) {
       console.warn("Veri çekme sırasında hata:", error);
       setYukleniyor(false);
@@ -360,30 +386,38 @@ export default function OkumaEkrani() {
         </TouchableOpacity>
       </Animated.View>
 
-      <Animated.View style={{ flex: 1, opacity: listeOpacity }}>
-  <FlatList
-  ref={flatListRef}
-  data={ayetler}
-  keyExtractor={(item) => item.ayet_no.toString()}
-  renderItem={renderAyet}
-  ListFooterComponent={renderFooter}
-  contentContainerStyle={{ padding: 15 }}
-  onViewableItemsChanged={onViewableItemsChanged}
-  viewabilityConfig={viewabilityConfig}
-  maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-  onScrollToIndexFailed={(info) => {
-  if (scrollDenemeRef.current >= 20) return; // Sonsuz döngü koruması (hedefe varana kadar yeterli)
-  scrollDenemeRef.current += 1;
-  flatListRef.current?.scrollToOffset({
-    offset: (info.averageItemLength || 500) * info.index,
-    animated: false,
-  });
-  setTimeout(() => {
-    flatListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0 });
-  }, 150);
-}}
-/>
-</Animated.View>
+            <View style={{ flex: 1 }}>
+        <Animated.View style={{ flex: 1, opacity: girisOpacity }}>
+          <FlatList
+            ref={flatListRef}
+            data={ayetler}
+            keyExtractor={(item) => item.ayet_no.toString()}
+            renderItem={renderAyet}
+            ListFooterComponent={renderFooter}
+            contentContainerStyle={{ padding: 15 }}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            onScrollToIndexFailed={(info) => {
+              basarisizRef.current = true;
+              clearTimeout(revealTimerRef.current);
+              if (scrollDenemeRef.current >= 20) { gosterListe(); return; }
+              scrollDenemeRef.current += 1;
+              flatListRef.current?.scrollToOffset({
+                offset: (info.averageItemLength || 500) * info.index,
+                animated: false,
+              });
+              setTimeout(() => hedefeKaydir(info.index), 150);
+            }}
+          />
+        </Animated.View>
+
+        {konumlaniyor && (
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.merkez]}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+          </View>
+        )}
+      </View>
     </View>
   );
 }
