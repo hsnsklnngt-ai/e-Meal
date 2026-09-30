@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useStore } from '../../store';
 
 const TUM_SURELER = [
@@ -36,6 +36,48 @@ export default function IndexScreen() {
   const router = useRouter();
   const { sonOkunan, karanlikMod, inisSirasinaGore } = useStore(); 
   
+  // YENİ: Hatim hesaplama çubuğu animasyon referansı
+  const hatimAnim = useRef(new Animated.Value(0)).current;
+
+  // YENİ: Seçili sıralamaya (Nüzul/Mushaf) göre okunan toplam ayeti bulup yüzde hesaplayan zeki motor
+  useEffect(() => {
+    let yuzde = 0;
+    if (sonOkunan && sonOkunan.sure && sonOkunan.ayet) {
+      const TOPLAM_AYET = 6236; // Kur'an-ı Kerim'in toplam ayet sayısı
+      let okunanAyet = 0;
+
+      if (inisSirasinaGore) {
+        // NÜZUL (İniş) sırasına göre hatim hesaplaması
+        const sureIndex = NUZUL_SIRASI.indexOf(sonOkunan.sure);
+        if (sureIndex !== -1) {
+          for (let i = 0; i < sureIndex; i++) {
+            const oncekiSureId = NUZUL_SIRASI[i];
+            const sureBilgisi = TUM_SURELER.find(x => x.id === oncekiSureId);
+            if (sureBilgisi) okunanAyet += sureBilgisi.ayet;
+          }
+          okunanAyet += sonOkunan.ayet;
+        }
+      } else {
+        // MUSHAF (Normal) sıraya göre hatim hesaplaması
+        for (let i = 1; i < sonOkunan.sure; i++) {
+          const sureBilgisi = TUM_SURELER.find(x => x.id === i);
+          if (sureBilgisi) okunanAyet += sureBilgisi.ayet;
+        }
+        okunanAyet += sonOkunan.ayet;
+      }
+
+      yuzde = (okunanAyet / TOPLAM_AYET) * 100;
+      if (yuzde > 100) yuzde = 100;
+    }
+
+    // Ana sayfa açıldığında barın pürüzsüzce dolması için animasyon
+    Animated.timing(hatimAnim, {
+      toValue: yuzde,
+      duration: 800, // 0.8 saniyede dolsun
+      useNativeDriver: false 
+    }).start();
+  }, [sonOkunan, inisSirasinaGore]);
+
   const [hizliSureMetni, setHizliSureMetni] = useState('');
   const [hizliSureId, setHizliSureId] = useState(null); 
   const [hizliDropdownAcik, setHizliDropdownAcik] = useState(false);
@@ -84,6 +126,18 @@ export default function IndexScreen() {
   return (
     <View style={[styles.container, { backgroundColor: themeBg }]}>
       
+      {/* YENİ: GENEL HATİM İLERLEME ÇUBUĞU (En üstteki bar) */}
+      <View style={{ height: 3, width: '100%', backgroundColor: karanlikMod ? '#2A3B2A' : '#E8F5E9', zIndex: 10 }}>
+        <Animated.View style={{ 
+          height: '100%', 
+          backgroundColor: '#4CAF50',
+          width: hatimAnim.interpolate({
+            inputRange: [0, 100],
+            outputRange: ['0%', '100%']
+          }) 
+        }} />
+      </View>
+
       {/* 1. SON OKUNAN BÖLÜMÜ */}
       {sonOkunan && (
         <TouchableOpacity 

@@ -39,13 +39,17 @@ export default function OkumaEkrani() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const toplamAyetRef = useRef(0);
   
-  // YENİ: Ajanda İpi (Kurdele) Animasyonu ve Görünen Ayet Referansı
+ // YENİ: Ajanda İpi (Kurdele) Animasyonu ve Görünen Ayet Referansı
   const ribbonAnim = useRef(new Animated.Value(0)).current;
   const gorunenAyetRef = useRef(null);
+  const fontIslemRef = useRef(false); // YENİ: Sonsuz döngüyü engelleyecek kilit!
 
   const flatListRef = useRef(null);
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    // YENİ KORUMA: Eğer yazı boyutu değişiyorsa, listeyi dinlemeyi kısa süreliğine durdur! (Sonsuz döngüyü engeller)
+    if (fontIslemRef.current) return;
+
     if (viewableItems && viewableItems.length > 0) {
       
       // 1. Ekranda görünen en üstteki ayeti SADECE HAFIZAYA alıyoruz (Otomatik kaydetmeyi iptal ettik)
@@ -118,6 +122,40 @@ export default function OkumaEkrani() {
     );
   };
 
+  // YENİ VE KESİN ÇÖZÜM: Listeyi anlık sıfırlayıp taze çizmek (Sonsuz kaymayı engeller)
+  const yaziBoyutunuDegistir = (yeniBoyut) => {
+    if (!gorunenAyetRef.current) {
+      setYaziBoyutu(yeniBoyut);
+      return;
+    }
+
+    fontIslemRef.current = true; // Ayet takipçisini kilitle
+    const hedefAyetNo = gorunenAyetRef.current.ayet_no;
+
+    // 1. Listeyi anlık olarak ekrandan kaldır (ScrollView'in çıldırmasını %100 engeller)
+    setYukleniyor(true); 
+    setYaziBoyutu(yeniBoyut);
+
+    // 2. Çok kısa bir süre (100ms) sonra listeyi yeni fontlarla tekrar ekrana bas
+    setTimeout(() => {
+      setYukleniyor(false);
+
+      // 3. Liste ekrana çizildikten sonra sessizce eski ayete ışınlan
+      setTimeout(() => {
+        if (flatListRef.current) {
+          const index = ayetler.findIndex(a => a.ayet_no === hedefAyetNo);
+          if (index !== -1) {
+            try {
+              flatListRef.current.scrollToIndex({ index: index, animated: false, viewPosition: 0 });
+            } catch(e) {}
+          }
+        }
+        // 4. Tüm işlemler güvenle bittikten sonra takip kilidini aç
+        setTimeout(() => { fontIslemRef.current = false; }, 500);
+      }, 300); 
+    }, 100); 
+  };
+
   useEffect(() => {
     if (sureId) verileriGetir();
   }, [sureId, hedefAyet, seciliYazarlar]);
@@ -163,7 +201,7 @@ export default function OkumaEkrani() {
       setAyetler(birlestirilmisVeri);
       setYukleniyor(false);
       
-      if (hedefAyet) {
+     if (hedefAyet) {
         const hAyetNo = parseInt(Array.isArray(hedefAyet) ? hedefAyet[0] : hedefAyet, 10);
         const index = birlestirilmisVeri.findIndex(a => a.ayet_no === hAyetNo);
         if (index !== -1) {
@@ -171,9 +209,8 @@ export default function OkumaEkrani() {
             if (flatListRef.current) flatListRef.current.scrollToIndex({ index: index, animated: false, viewPosition: 0 });
           }, 500); 
         }
-        // Eğer kullanıcı dışarıdan (ana sayfadan) özel bir ayete tıklayarak geldiyse bu yeri manuel olarak okumaya niyetli demektir, o yüzden bunu kaydetmeye devam ediyoruz.
-        setSonOkunan(queryId, hAyetNo, `${queryId}. ${SURE_ADLARI[queryId]} Suresi`);
-      } 
+        // Otomatik kaydetme iptal edildi. Artık sadece Ajanda İpi ile manuel kayıt yapılacak!
+      }  
     } catch (error) {
       console.warn("Veri çekme sırasında hata:", error);
       setYukleniyor(false);
@@ -307,10 +344,10 @@ export default function OkumaEkrani() {
         </View>
 
         <View style={styles.fontAyarKutusu}>
-          <TouchableOpacity onPress={() => setYaziBoyutu(Math.max(12, yaziBoyutu - 2))} style={[styles.fontButon, { backgroundColor: karanlikMod ? '#2A3B2A' : '#E8F5E9' }]}>
+          <TouchableOpacity onPress={() => yaziBoyutunuDegistir(Math.max(12, yaziBoyutu - 2))} style={[styles.fontButon, { backgroundColor: karanlikMod ? '#2A3B2A' : '#E8F5E9' }]}>
             <Text style={styles.fontButonYazi}>A-</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setYaziBoyutu(Math.min(30, yaziBoyutu + 2))} style={[styles.fontButon, { backgroundColor: karanlikMod ? '#2A3B2A' : '#E8F5E9' }]}>
+          <TouchableOpacity onPress={() => yaziBoyutunuDegistir(Math.min(30, yaziBoyutu + 2))} style={[styles.fontButon, { backgroundColor: karanlikMod ? '#2A3B2A' : '#E8F5E9' }]}>
             <Text style={styles.fontButonYazi}>A+</Text>
           </TouchableOpacity>
         </View>
