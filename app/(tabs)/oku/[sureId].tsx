@@ -44,6 +44,9 @@ export default function OkumaEkrani() {
   const gorunenAyetRef = useRef(null);
   const fontIslemRef = useRef(false); // YENİ: Sonsuz döngüyü engelleyecek kilit!
 
+  const scrollDenemeRef = useRef(0);
+  const listeOpacity = useRef(new Animated.Value(1)).current;
+
   const flatListRef = useRef(null);
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
@@ -122,39 +125,9 @@ export default function OkumaEkrani() {
     );
   };
 
-  // YENİ VE KESİN ÇÖZÜM: Listeyi anlık sıfırlayıp taze çizmek (Sonsuz kaymayı engeller)
   const yaziBoyutunuDegistir = (yeniBoyut) => {
-    if (!gorunenAyetRef.current) {
-      setYaziBoyutu(yeniBoyut);
-      return;
-    }
-
-    fontIslemRef.current = true; // Ayet takipçisini kilitle
-    const hedefAyetNo = gorunenAyetRef.current.ayet_no;
-
-    // 1. Listeyi anlık olarak ekrandan kaldır (ScrollView'in çıldırmasını %100 engeller)
-    setYukleniyor(true); 
-    setYaziBoyutu(yeniBoyut);
-
-    // 2. Çok kısa bir süre (100ms) sonra listeyi yeni fontlarla tekrar ekrana bas
-    setTimeout(() => {
-      setYukleniyor(false);
-
-      // 3. Liste ekrana çizildikten sonra sessizce eski ayete ışınlan
-      setTimeout(() => {
-        if (flatListRef.current) {
-          const index = ayetler.findIndex(a => a.ayet_no === hedefAyetNo);
-          if (index !== -1) {
-            try {
-              flatListRef.current.scrollToIndex({ index: index, animated: false, viewPosition: 0 });
-            } catch(e) {}
-          }
-        }
-        // 4. Tüm işlemler güvenle bittikten sonra takip kilidini aç
-        setTimeout(() => { fontIslemRef.current = false; }, 500);
-      }, 300); 
-    }, 100); 
-  };
+  setYaziBoyutu(yeniBoyut);
+};
 
   useEffect(() => {
     if (sureId) verileriGetir();
@@ -165,6 +138,7 @@ export default function OkumaEkrani() {
 
     setYukleniyor(true);
     progressAnim.setValue(0); 
+    scrollDenemeRef.current = 0;
     
     try {
       const db = getDb();
@@ -386,23 +360,30 @@ export default function OkumaEkrani() {
         </TouchableOpacity>
       </Animated.View>
 
-      <FlatList
-        ref={flatListRef}
-        data={ayetler}
-        keyExtractor={(item) => item.ayet_no.toString()}
-        renderItem={renderAyet}
-        ListFooterComponent={renderFooter}
-        contentContainerStyle={{ padding: 15 }}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        onScrollToIndexFailed={info => {
-          const offset = (info.averageItemLength || 500) * info.index;
-          flatListRef.current?.scrollToOffset({ offset, animated: false });
-          setTimeout(() => {
-            flatListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0 });
-          }, 200);
-        }}
-      />
+      <Animated.View style={{ flex: 1, opacity: listeOpacity }}>
+  <FlatList
+  ref={flatListRef}
+  data={ayetler}
+  keyExtractor={(item) => item.ayet_no.toString()}
+  renderItem={renderAyet}
+  ListFooterComponent={renderFooter}
+  contentContainerStyle={{ padding: 15 }}
+  onViewableItemsChanged={onViewableItemsChanged}
+  viewabilityConfig={viewabilityConfig}
+  maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+  onScrollToIndexFailed={(info) => {
+  if (scrollDenemeRef.current >= 20) return; // Sonsuz döngü koruması (hedefe varana kadar yeterli)
+  scrollDenemeRef.current += 1;
+  flatListRef.current?.scrollToOffset({
+    offset: (info.averageItemLength || 500) * info.index,
+    animated: false,
+  });
+  setTimeout(() => {
+    flatListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0 });
+  }, 150);
+}}
+/>
+</Animated.View>
     </View>
   );
 }
